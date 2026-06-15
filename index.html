@@ -133,6 +133,21 @@
 
             <!-- Editor Toolbar -->
             <div class="editor-toolbar" id="editorToolbar">
+                <div class="toolbar-group toolbar-history">
+                    <button class="toolbar-btn" data-action="undo" title="Undo (Ctrl+Z)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7v6h6"/>
+                            <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="redo" title="Redo (Ctrl+Y)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 7v6h-6"/>
+                            <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="toolbar-separator-v"></div>
                 <div class="toolbar-group toolbar-text">
                     <button class="toolbar-btn" data-action="bold" title="Bold (Ctrl+B)">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -170,12 +185,14 @@
                 <div class="toolbar-group toolbar-headings">
                     <button class="toolbar-btn" data-action="h1" title="Heading 1">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 12h8M4 18V6M12 18V6M17 12h3m0 0v6m0-6l-4-4"/>
+                            <path d="M4 12h8M4 18V6M12 18V6"/>
+                            <path d="M17 12h3M17 12v6"/>
                         </svg>
                     </button>
                     <button class="toolbar-btn" data-action="h2" title="Heading 2">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 12h8M4 18V6M12 18V6M17 12h3m0 0v6m0-6l-4-4"/>
+                            <path d="M4 12h8M4 18V6M12 18V6"/>
+                            <path d="M17 12h3M17 12v6M20 12l-2-2"/>
                         </svg>
                     </button>
                 </div>
@@ -197,21 +214,6 @@
                             <line x1="10" y1="12" x2="21" y2="12"/>
                             <line x1="10" y1="18" x2="21" y2="18"/>
                             <path d="M4 6h1v4M4 10h2M4 16h2M4 18h1v-4"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="toolbar-spacer"></div>
-                <div class="toolbar-group toolbar-history">
-                    <button class="toolbar-btn" data-action="undo" title="Undo (Ctrl+Z)">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 7v6h6"/>
-                            <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-                        </svg>
-                    </button>
-                    <button class="toolbar-btn" data-action="redo" title="Redo (Ctrl+Y)">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 7v6h-6"/>
-                            <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
                         </svg>
                     </button>
                 </div>
@@ -404,6 +406,27 @@
             <div class="modal-footer">
                 <button class="btn btn-ghost" id="cancelImport">Cancel</button>
                 <button class="btn btn-primary" id="confirmImport" disabled>Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Walkthrough Overlay -->
+    <div class="walkthrough-overlay" id="walkthroughOverlay">
+        <div class="walkthrough-backdrop"></div>
+        <div class="walkthrough-spotlight" id="walkthroughSpotlight"></div>
+    </div>
+
+    <!-- Walkthrough Tooltip -->
+    <div class="walkthrough-tooltip" id="walkthroughTooltip">
+        <div class="walkthrough-content">
+            <h4 id="walkthroughTitle">Welcome</h4>
+            <p id="walkthroughText">Welcome to Quilltrace</p>
+            <div class="walkthrough-progress">
+                <span id="walkthroughStep">1</span> / <span id="walkthroughTotal">5</span>
+            </div>
+            <div class="walkthrough-actions">
+                <button class="btn btn-ghost btn-sm" id="walkthroughSkip">Skip</button>
+                <button class="btn btn-primary btn-sm" id="walkthroughNext">Next</button>
             </div>
         </div>
     </div>

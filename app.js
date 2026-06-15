@@ -1,6 +1,6 @@
 /**
  * Quilltrace - Static Edition
- * Vanilla JS with per-keystroke snapshots, trash, context menus, inline replay
+ * Vanilla JS with per-keystroke snapshots, trash, context menus, inline replay, walkthrough
  */
 
 // ============================================
@@ -28,7 +28,9 @@ let state = {
     lastSnapshotHash: null,
     dirty: false,
     contextMenuTarget: null,
-    renameTargetId: null
+    renameTargetId: null,
+    walkthroughStep: 0,
+    walkthroughActive: false
 };
 
 // ============================================
@@ -85,8 +87,180 @@ const els = {
     closeRename: $('#closeRename'),
     cancelRename: $('#cancelRename'),
     confirmRename: $('#confirmRename'),
-    renameInput: $('#renameInput')
+    renameInput: $('#renameInput'),
+    // Walkthrough
+    walkthroughOverlay: $('#walkthroughOverlay'),
+    walkthroughSpotlight: $('#walkthroughSpotlight'),
+    walkthroughTooltip: $('#walkthroughTooltip'),
+    walkthroughTitle: $('#walkthroughTitle'),
+    walkthroughText: $('#walkthroughText'),
+    walkthroughStep: $('#walkthroughStep'),
+    walkthroughTotal: $('#walkthroughTotal'),
+    walkthroughNext: $('#walkthroughNext'),
+    walkthroughSkip: $('#walkthroughSkip')
 };
+
+// ============================================
+// Walkthrough Steps
+// ============================================
+const WALKTHROUGH_STEPS = [
+    {
+        title: 'Welcome to Quilltrace',
+        text: 'A note-taking app that captures every keystroke. Your writing history is preserved so you can replay your creative process.',
+        target: null,
+        position: 'center'
+    },
+    {
+        title: 'Your Notes',
+        text: 'All your notes live here. Right-click any note to rename, duplicate, or move it to trash.',
+        target: '#sidebar',
+        position: 'right'
+    },
+    {
+        title: 'The Editor',
+        text: 'Start typing here. Every keystroke is automatically saved as a snapshot. Use the toolbar for formatting.',
+        target: '#editor',
+        position: 'bottom'
+    },
+    {
+        title: 'Replay Your Writing',
+        text: 'Hit Play to watch your note being written back in real time. Adjust speed or enter a custom interval.',
+        target: '#replayControls',
+        position: 'bottom'
+    },
+    {
+        title: 'Import & Export',
+        text: 'Export all your notes as JSON for backup. Import them back later, including trash and settings.',
+        target: '#exportBtn',
+        position: 'bottom'
+    }
+];
+
+// ============================================
+// Walkthrough Logic
+// ============================================
+function startWalkthrough() {
+    const hasSeenWalkthrough = Storage.get('walkthrough_seen');
+    if (hasSeenWalkthrough) return;
+
+    state.walkthroughActive = true;
+    state.walkthroughStep = 0;
+    els.walkthroughTotal.textContent = WALKTHROUGH_STEPS.length;
+    els.walkthroughOverlay.classList.add('active');
+    els.walkthroughTooltip.classList.add('active');
+
+    showWalkthroughStep(0);
+}
+
+function showWalkthroughStep(index) {
+    const step = WALKTHROUGH_STEPS[index];
+    if (!step) {
+        endWalkthrough();
+        return;
+    }
+
+    state.walkthroughStep = index;
+    els.walkthroughStep.textContent = index + 1;
+    els.walkthroughTitle.textContent = step.title;
+    els.walkthroughText.textContent = step.text;
+
+    // Update button text
+    if (index === WALKTHROUGH_STEPS.length - 1) {
+        els.walkthroughNext.textContent = 'Get Started';
+    } else {
+        els.walkthroughNext.textContent = 'Next';
+    }
+
+    // Position spotlight and tooltip
+    if (step.target) {
+        const targetEl = $(step.target);
+        if (targetEl) {
+            const rect = targetEl.getBoundingClientRect();
+            const padding = 8;
+
+            // Spotlight
+            els.walkthroughSpotlight.style.display = 'block';
+            els.walkthroughSpotlight.style.left = `${rect.left - padding}px`;
+            els.walkthroughSpotlight.style.top = `${rect.top - padding}px`;
+            els.walkthroughSpotlight.style.width = `${rect.width + padding * 2}px`;
+            els.walkthroughSpotlight.style.height = `${rect.height + padding * 2}px`;
+
+            // Tooltip position
+            positionTooltip(rect, step.position);
+        } else {
+            // Fallback to center if target not found
+            centerTooltip();
+        }
+    } else {
+        // Center tooltip, hide spotlight
+        els.walkthroughSpotlight.style.display = 'none';
+        centerTooltip();
+    }
+}
+
+function positionTooltip(targetRect, position) {
+    const tooltip = els.walkthroughTooltip;
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const gap = 16;
+    let left, top;
+
+    switch (position) {
+        case 'right':
+            left = targetRect.right + gap;
+            top = targetRect.top + (targetRect.height - tooltipRect.height) / 2;
+            if (left + tooltipRect.width > window.innerWidth - 16) {
+                left = targetRect.left - tooltipRect.width - gap;
+            }
+            break;
+        case 'bottom':
+            left = targetRect.left + (targetRect.width - tooltipRect.width) / 2;
+            top = targetRect.bottom + gap;
+            if (left < 16) left = 16;
+            if (left + tooltipRect.width > window.innerWidth - 16) {
+                left = window.innerWidth - tooltipRect.width - 16;
+            }
+            if (top + tooltipRect.height > window.innerHeight - 16) {
+                top = targetRect.top - tooltipRect.height - gap;
+            }
+            break;
+        default:
+            centerTooltip();
+            return;
+    }
+
+    // Clamp to viewport
+    left = Math.max(16, Math.min(left, window.innerWidth - tooltipRect.width - 16));
+    top = Math.max(16, Math.min(top, window.innerHeight - tooltipRect.height - 16));
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+function centerTooltip() {
+    const tooltip = els.walkthroughTooltip;
+    const rect = tooltip.getBoundingClientRect();
+    const left = (window.innerWidth - rect.width) / 2;
+    const top = (window.innerHeight - rect.height) / 2;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+function nextWalkthroughStep() {
+    if (state.walkthroughStep < WALKTHROUGH_STEPS.length - 1) {
+        showWalkthroughStep(state.walkthroughStep + 1);
+    } else {
+        endWalkthrough();
+    }
+}
+
+function endWalkthrough() {
+    state.walkthroughActive = false;
+    els.walkthroughOverlay.classList.remove('active');
+    els.walkthroughTooltip.classList.remove('active');
+    els.walkthroughSpotlight.style.display = 'none';
+    Storage.set('walkthrough_seen', true);
+    showToast('Welcome to Quilltrace!', 'success');
+}
 
 // ============================================
 // Storage Layer
@@ -237,7 +411,6 @@ function emptyTrash() {
 }
 
 function createNewNote() {
-    // CRITICAL: Reset snapshots and hash to prevent cross-contamination
     state.snapshots = [];
     state.lastSnapshotHash = null;
     state.isReplaying = false;
@@ -262,7 +435,6 @@ function createNewNote() {
 function loadNoteIntoEditor(note) {
     if (!note) return;
 
-    // CRITICAL: Reset replay state and snapshots
     state.activeNoteId = note.id;
     state.snapshots = note.snapshots || [];
     state.lastSnapshotHash = null;
@@ -306,7 +478,6 @@ function takeSnapshot() {
     const content = els.editor.innerHTML;
     const hash = getContentHash(content);
 
-    // Skip if content hasn't changed
     if (hash === state.lastSnapshotHash) return;
 
     state.lastSnapshotHash = hash;
@@ -321,13 +492,11 @@ function takeSnapshot() {
 
     state.snapshots.push(snapshot);
 
-    // Enforce max snapshots
     const max = parseInt(state.settings.maxSnapshots);
     if (state.snapshots.length > max) {
         state.snapshots = state.snapshots.slice(-max);
     }
 
-    // Save to note
     const note = loadNote(state.activeNoteId);
     if (note) {
         note.snapshots = state.snapshots;
@@ -343,7 +512,7 @@ function takeSnapshot() {
 }
 
 // ============================================
-// Replay (inline, no blur overlay)
+// Replay
 // ============================================
 function startReplay() {
     if (state.isReplaying || state.snapshots.length === 0) return;
@@ -355,7 +524,6 @@ function startReplay() {
     let index = 0;
     const speed = getReplaySpeed();
 
-    // Show first snapshot
     els.editor.innerHTML = state.snapshots[0].content;
     updateCounts();
 
@@ -590,7 +758,6 @@ function handleContextAction(action) {
 
     switch (action) {
         case 'rename':
-            // CRITICAL FIX: Store target ID in dedicated variable
             state.renameTargetId = noteId;
             els.renameInput.value = note.title || 'Untitled';
             openModal(els.renameModal);
@@ -614,7 +781,6 @@ function handleContextAction(action) {
 }
 
 function confirmRename() {
-    // CRITICAL FIX: Use dedicated renameTargetId instead of contextMenuTarget
     const noteId = state.renameTargetId;
     if (!noteId) return;
 
@@ -854,7 +1020,11 @@ function updateToolbarState() {
 // Event Listeners
 // ============================================
 function initEventListeners() {
-    // Editor input - PER KEYSTROKE SNAPSHOT
+    // Walkthrough
+    els.walkthroughNext.addEventListener('click', nextWalkthroughStep);
+    els.walkthroughSkip.addEventListener('click', endWalkthrough);
+
+    // Editor input
     els.editor.addEventListener('input', () => {
         updateCounts();
         takeSnapshot();
@@ -1038,7 +1208,11 @@ function init() {
     updateStorageDisplay();
     updateToolbarState();
 
-    setTimeout(() => els.editor.focus(), 100);
+    setTimeout(() => {
+        els.editor.focus();
+        // Start walkthrough after a brief delay for first-time users
+        setTimeout(startWalkthrough, 500);
+    }, 100);
 
     console.log('Quilltrace initialized');
 }
