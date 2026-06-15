@@ -48,7 +48,6 @@ const els = {
     snapshotCount: $('#snapshotCount'),
     noteTitleInput: $('#noteTitleInput'),
     sidebar: $('#sidebar'),
-    sidebarToggle: $('#sidebarToggle'),
     mobileMenuBtn: $('#mobileMenuBtn'),
     newNoteBtn: $('#newNoteBtn'),
     trashBtn: $('#trashBtn'),
@@ -153,7 +152,7 @@ function getContentHash(html) {
 // ============================================
 function createNote(title = 'Untitled', content = '') {
     const now = Date.now();
-    const note = {
+    return {
         id: `note_${now}_${Math.random().toString(36).slice(2, 8)}`,
         title: title || 'Untitled',
         content: content,
@@ -161,7 +160,6 @@ function createNote(title = 'Untitled', content = '') {
         updatedAt: now,
         snapshots: []
     };
-    return note;
 }
 
 function saveNote(note) {
@@ -239,7 +237,7 @@ function emptyTrash() {
 }
 
 function createNewNote() {
-    // CRITICAL FIX: Reset snapshots and hash to prevent cross-contamination
+    // CRITICAL: Reset snapshots and hash to prevent cross-contamination
     state.snapshots = [];
     state.lastSnapshotHash = null;
     state.isReplaying = false;
@@ -264,7 +262,7 @@ function createNewNote() {
 function loadNoteIntoEditor(note) {
     if (!note) return;
 
-    // CRITICAL FIX: Reset replay state and snapshots
+    // CRITICAL: Reset replay state and snapshots
     state.activeNoteId = note.id;
     state.snapshots = note.snapshots || [];
     state.lastSnapshotHash = null;
@@ -897,11 +895,7 @@ function initEventListeners() {
         });
     });
 
-    // Sidebar toggle
-    els.sidebarToggle.addEventListener('click', () => {
-        els.sidebar.classList.toggle('collapsed');
-    });
-
+    // Mobile menu toggle
     els.mobileMenuBtn.addEventListener('click', () => {
         els.sidebar.classList.toggle('open');
     });
