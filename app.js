@@ -983,6 +983,17 @@ function initEventListeners() {
         els.sidebar.classList.toggle('open');
     });
 
+    // Click outside sidebar to close on mobile
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 && els.sidebar.classList.contains('open')) {
+            const isClickInsideSidebar = els.sidebar.contains(e.target);
+            const isClickOnHamburger = els.mobileMenuBtn.contains(e.target);
+            if (!isClickInsideSidebar && !isClickOnHamburger) {
+                els.sidebar.classList.remove('open');
+            }
+        }
+    });
+
     els.newNoteBtn.addEventListener('click', createNewNote);
 
     // Trash
