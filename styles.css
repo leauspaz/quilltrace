@@ -500,12 +500,8 @@ body {
     margin: 0 0.5rem;
 }
 
-.toolbar-spacer {
-    flex: 1;
-}
-
 .toolbar-history {
-    margin-left: auto;
+    /* undo/redo on left */
 }
 
 .toolbar-btn {
@@ -1245,7 +1241,7 @@ body {
     }
 
     .replay-controls .speed-wrap {
-        display: none;
+        display: flex;
     }
 
     /* Editor toolbar: multi-line with grouped sections */
