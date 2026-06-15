@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoNote</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span>ChronoNote</span>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="sidebar-actions">
+                <button class="btn btn-primary btn-full" id="newNoteBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    New Note
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <span class="nav-label">Notes</span>
+                    <ul id="notesList" class="notes-list">
+                        <!-- Populated by JS -->
+                    </ul>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="storage-bar">
+                    <div class="storage-info">
+                        <span class="storage-label">Storage</span>
+                        <span class="storage-value" id="storageValue">0 KB</span>
+                    </div>
+                    <div class="storage-track">
+                        <div class="storage-fill" id="storageFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="btn btn-ghost" id="mobileMenuBtn" aria-label="Menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"/>
+                            <line x1="3" y1="6" x2="21" y2="6"/>
+                            <line x1="3" y1="18" x2="21" y2="18"/>
+                        </svg>
+                    </button>
+                    <div class="breadcrumb" id="breadcrumb">
+                        <span class="breadcrumb-current">Untitled</span>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="last-saved" id="lastSaved">Unsaved</div>
+                    <div class="toolbar-separator"></div>
+                    <button class="btn btn-ghost" id="importBtn" title="Import JSON">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Import
+                    </button>
+                    <button class="btn btn-ghost" id="exportBtn" title="Export JSON">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Export
+                    </button>
+                    <div class="toolbar-separator"></div>
+                    <button class="btn btn-ghost btn-icon" id="timelineBtn" title="Timeline">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-ghost btn-icon" id="settingsBtn" title="Settings">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Editor Toolbar -->
+            <div class="editor-toolbar" id="editorToolbar">
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-action="bold" title="Bold (Ctrl+B)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
+                            <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="italic" title="Italic (Ctrl+I)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="4" x2="10" y2="4"/>
+                            <line x1="14" y1="20" x2="5" y2="20"/>
+                            <line x1="15" y1="4" x2="9" y2="20"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="underline" title="Underline (Ctrl+U)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 3v7a6 6 0 0 0 12 0V3"/>
+                            <line x1="4" y1="21" x2="20" y2="21"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="strike" title="Strikethrough">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17.3 19c-1.4 1.4-3.3 2-5.3 2-4.4 0-8-3.6-8-8 0-2 0.6-3.9 2-5.3"/>
+                            <path d="M6.7 5c1.4-1.4 3.3-2 5.3-2 4.4 0 8 3.6 8 8 0 2-0.6 3.9-2 5.3"/>
+                            <line x1="4" y1="12" x2="20" y2="12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="toolbar-separator-v"></div>
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-action="h1" title="Heading 1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 12h8M4 18V6M12 18V6M17 12h3m0 0v6m0-6l-4-4"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="h2" title="Heading 2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 12h8M4 18V6M12 18V6M17 12h3m0 0v6m0-6l-4-4"/>
+                            <text x="16" y="20" font-size="10" fill="currentColor" stroke="none">2</text>
+                        </svg>
+                    </button>
+                </div>
+                <div class="toolbar-separator-v"></div>
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-action="ul" title="Bullet List">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="8" y1="6" x2="21" y2="6"/>
+                            <line x1="8" y1="12" x2="21" y2="12"/>
+                            <line x1="8" y1="18" x2="21" y2="18"/>
+                            <line x1="3" y1="6" x2="3.01" y2="6"/>
+                            <line x1="3" y1="12" x2="3.01" y2="12"/>
+                            <line x1="3" y1="18" x2="3.01" y2="18"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="ol" title="Numbered List">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="10" y1="6" x2="21" y2="6"/>
+                            <line x1="10" y1="12" x2="21" y2="12"/>
+                            <line x1="10" y1="18" x2="21" y2="18"/>
+                            <path d="M4 6h1v4M4 10h2M4 16h2M4 18h1v-4"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="blockquote" title="Quote">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="toolbar-separator-v"></div>
+                <div class="toolbar-group">
+                    <button class="toolbar-btn" data-action="undo" title="Undo (Ctrl+Z)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7v6h6"/>
+                            <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" data-action="redo" title="Redo (Ctrl+Y)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 7v6h-6"/>
+                            <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Editor -->
+            <div class="editor-wrapper">
+                <div class="editor" id="editor" contenteditable="true" spellcheck="false" data-placeholder="Start writing..."></div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="statusbar">
+                <div class="status-left">
+                    <span id="wordCount">0 words</span>
+                    <span class="status-separator">·</span>
+                    <span id="charCount">0 chars</span>
+                    <span class="status-separator">·</span>
+                    <span id="snapshotCount">0 snapshots</span>
+                </div>
+                <div class="status-right">
+                    <span id="autosaveStatus">Auto-save on</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Timeline Panel (Slide-over) -->
+    <div class="timeline-panel" id="timelinePanel">
+        <div class="timeline-header">
+            <h3>Timeline</h3>
+            <button class="btn btn-ghost btn-icon" id="closeTimeline">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="timeline-controls">
+            <button class="btn btn-sm" id="timelinePlay">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Play
+            </button>
+            <button class="btn btn-sm btn-ghost" id="timelinePause">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <rect x="6" y="4" width="4" height="16"/>
+                    <rect x="14" y="4" width="4" height="16"/>
+                </svg>
+                Pause
+            </button>
+            <div class="speed-control">
+                <label>Speed</label>
+                <select id="replaySpeed">
+                    <option value="50">2x</option>
+                    <option value="100" selected>1x</option>
+                    <option value="200">0.5x</option>
+                    <option value="500">0.2x</option>
+                </select>
+            </div>
+        </div>
+        <div class="timeline-scrubber">
+            <input type="range" min="0" max="0" value="0" id="timelineScrubber" class="scrubber">
+            <div class="scrubber-labels">
+                <span id="scrubberCurrent">Start</span>
+                <span id="scrubberTotal">End</span>
+            </div>
+        </div>
+        <div class="timeline-list" id="timelineList">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+    <div class="timeline-overlay" id="timelineOverlay"></div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="btn btn-ghost btn-icon" id="closeSettings">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Snapshot Interval</label>
+                        <span class="setting-desc">Wait time before capturing a snapshot</span>
+                    </div>
+                    <select id="snapshotInterval" class="setting-select">
+                        <option value="300">300ms (Fast)</option>
+                        <option value="500" selected>500ms (Normal)</option>
+                        <option value="1000">1s (Relaxed)</option>
+                        <option value="2000">2s (Minimal)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Max Snapshots</label>
+                        <span class="setting-desc">Limit to prevent storage bloat</span>
+                    </div>
+                    <select id="maxSnapshots" class="setting-select">
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200" selected>200</option>
+                        <option value="500">500</option>
+                        <option value="1000">1000</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Font Size</label>
+                        <span class="setting-desc">Editor font size</span>
+                    </div>
+                    <select id="fontSize" class="setting-select">
+                        <option value="14">14px</option>
+                        <option value="16" selected>16px</option>
+                        <option value="18">18px</option>
+                        <option value="20">20px</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Theme</label>
+                        <span class="setting-desc">Color scheme preference</span>
+                    </div>
+                    <select id="theme" class="setting-select">
+                        <option value="system" selected>System</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+                <div class="setting-danger">
+                    <button class="btn btn-danger btn-full" id="clearAllData">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        Clear All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div class="modal" id="importModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content modal-sm">
+            <div class="modal-header">
+                <h3>Import Notes</h3>
+                <button class="btn btn-ghost btn-icon" id="closeImport">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="file-dropzone" id="importDropzone">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <p>Drop JSON file here or click to browse</p>
+                    <input type="file" id="importFile" accept=".json" hidden>
+                </div>
+                <div class="import-preview" id="importPreview"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="cancelImport">Cancel</button>
+                <button class="btn btn-primary" id="confirmImport" disabled>Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
