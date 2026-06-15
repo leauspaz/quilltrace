@@ -1,34 +1,32 @@
 /**
- * ChronoNote - Static Edition
- * Vanilla JS implementation with localStorage persistence
- * Features: Debounced snapshots, timeline replay, import/export, shadcn UI
+ * Quilltrace - Static Edition
+ * Vanilla JS with per-keystroke snapshots, trash, context menus, inline replay
  */
 
 // ============================================
 // Configuration & State
 // ============================================
 const CONFIG = {
-    DB_NAME: 'ChronoNote_v2',
+    DB_NAME: 'Quilltrace_v1',
     DEFAULT_SETTINGS: {
-        snapshotInterval: 500,    // ms
         maxSnapshots: 200,
         fontSize: 16,
         theme: 'system'
     },
-    MAX_STORAGE_MB: 5,
-    DEBOUNCE_WAIT: 500
+    MAX_STORAGE_MB: 5
 };
 
 let state = {
     notes: [],
+    trash: [],
     activeNoteId: null,
     snapshots: [],
     settings: { ...CONFIG.DEFAULT_SETTINGS },
     isReplaying: false,
     replayInterval: null,
     lastSnapshotHash: null,
-    snapshotTimer: null,
-    dirty: false
+    dirty: false,
+    contextMenuTarget: null
 };
 
 // ============================================
@@ -46,26 +44,21 @@ const els = {
     wordCount: $('#wordCount'),
     charCount: $('#charCount'),
     snapshotCount: $('#snapshotCount'),
-    breadcrumbCurrent: $('.breadcrumb-current'),
+    noteTitleInput: $('#noteTitleInput'),
     sidebar: $('#sidebar'),
     sidebarToggle: $('#sidebarToggle'),
     mobileMenuBtn: $('#mobileMenuBtn'),
     newNoteBtn: $('#newNoteBtn'),
-    timelineBtn: $('#timelineBtn'),
-    timelinePanel: $('#timelinePanel'),
-    timelineOverlay: $('#timelineOverlay'),
-    closeTimeline: $('#closeTimeline'),
-    timelineList: $('#timelineList'),
-    timelinePlay: $('#timelinePlay'),
-    timelinePause: $('#timelinePause'),
+    trashBtn: $('#trashBtn'),
+    trashCount: $('#trashCount'),
+    replayControls: $('#replayControls'),
+    replayPlayBtn: $('#replayPlayBtn'),
+    replayPauseBtn: $('#replayPauseBtn'),
     replaySpeed: $('#replaySpeed'),
-    timelineScrubber: $('#timelineScrubber'),
-    scrubberCurrent: $('#scrubberCurrent'),
-    scrubberTotal: $('#scrubberTotal'),
+    customSpeed: $('#customSpeed'),
     settingsBtn: $('#settingsBtn'),
     settingsModal: $('#settingsModal'),
     closeSettings: $('#closeSettings'),
-    snapshotInterval: $('#snapshotInterval'),
     maxSnapshots: $('#maxSnapshots'),
     fontSize: $('#fontSize'),
     theme: $('#theme'),
@@ -80,18 +73,28 @@ const els = {
     importFile: $('#importFile'),
     importPreview: $('#importPreview'),
     toastContainer: $('#toastContainer'),
-    toolbarBtns: $$('.toolbar-btn')
+    toolbarBtns: $$('.toolbar-btn'),
+    contextMenu: $('#contextMenu'),
+    trashModal: $('#trashModal'),
+    closeTrash: $('#closeTrash'),
+    trashList: $('#trashList'),
+    emptyTrashBtn: $('#emptyTrashBtn'),
+    renameModal: $('#renameModal'),
+    closeRename: $('#closeRename'),
+    cancelRename: $('#cancelRename'),
+    confirmRename: $('#confirmRename'),
+    renameInput: $('#renameInput')
 };
 
 // ============================================
-// Storage Layer (localStorage with size tracking)
+// Storage Layer
 // ============================================
 const Storage = {
     getSize() {
         let total = 0;
         for (let key in localStorage) {
-            if (localStorage.hasOwnProperty(key)) {
-                total += localStorage[key].length * 2; // UTF-16 = 2 bytes per char
+            if (localStorage.hasOwnProperty(key) && key.startsWith(CONFIG.DB_NAME)) {
+                total += localStorage[key].length * 2;
             }
         }
         return total;
@@ -102,7 +105,6 @@ const Storage = {
             const raw = localStorage.getItem(`${CONFIG.DB_NAME}_${key}`);
             return raw ? JSON.parse(raw) : null;
         } catch (e) {
-            console.error('Storage get error:', e);
             return null;
         }
     },
@@ -114,27 +116,20 @@ const Storage = {
         } catch (e) {
             if (e.name === 'QuotaExceededError') {
                 showToast('Storage full! Delete old notes or clear data.', 'error');
-                // Try to clean up old snapshots
                 cleanupOldSnapshots();
                 return false;
             }
-            console.error('Storage set error:', e);
             return false;
         }
     },
 
     remove(key) {
         localStorage.removeItem(`${CONFIG.DB_NAME}_${key}`);
-    },
-
-    clear() {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith(CONFIG.DB_NAME_));
-        keys.forEach(k => localStorage.removeItem(k));
     }
 };
 
 // ============================================
-// Hashing for deduplication
+// Hashing
 // ============================================
 function hashString(str) {
     let hash = 0;
@@ -155,7 +150,7 @@ function getContentHash(html) {
 // ============================================
 function createNote(title = 'Untitled', content = '') {
     const now = Date.now();
-    const note = {
+    return {
         id: `note_${now}_${Math.random().toString(36).slice(2, 8)}`,
         title: title || 'Untitled',
         content: content,
@@ -163,7 +158,6 @@ function createNote(title = 'Untitled', content = '') {
         updatedAt: now,
         snapshots: []
     };
-    return note;
 }
 
 function saveNote(note) {
@@ -176,31 +170,81 @@ function loadNote(id) {
 }
 
 function deleteNote(id) {
+    const note = loadNote(id);
+    if (!note) return;
+
+    // Move to trash
+    const trashed = { ...note, trashedAt: Date.now() };
+    state.trash.push(trashed);
+    Storage.set('trash', state.trash);
+
+    // Remove from active
     Storage.remove(`note_${id}`);
     state.notes = state.notes.filter(n => n.id !== id);
+
     if (state.activeNoteId === id) {
         state.activeNoteId = state.notes.length > 0 ? state.notes[0].id : null;
         if (state.activeNoteId) {
-            const note = loadNote(state.activeNoteId);
-            loadNoteIntoEditor(note);
+            const next = loadNote(state.activeNoteId);
+            if (next) loadNoteIntoEditor(next);
         } else {
             createNewNote();
         }
     }
+
+    saveIndex();
     renderNotesList();
+    updateTrashCount();
     updateStorageDisplay();
-    showToast('Note deleted', 'info');
+    showToast('Note moved to trash', 'info');
+}
+
+function restoreNote(trashedNote) {
+    state.trash = state.trash.filter(n => n.id !== trashedNote.id);
+    Storage.set('trash', state.trash);
+
+    const restored = { ...trashedNote };
+    delete restored.trashedAt;
+    restored.updatedAt = Date.now();
+    saveNote(restored);
+
+    state.notes.push({ id: restored.id, title: restored.title, updatedAt: restored.updatedAt });
+    saveIndex();
+
+    renderNotesList();
+    updateTrashCount();
+    updateStorageDisplay();
+    showToast('Note restored', 'success');
+}
+
+function permanentlyDelete(trashedNote) {
+    state.trash = state.trash.filter(n => n.id !== trashedNote.id);
+    Storage.set('trash', state.trash);
+    updateTrashCount();
+    updateStorageDisplay();
+    renderTrashList();
+    showToast('Note permanently deleted', 'warning');
+}
+
+function emptyTrash() {
+    if (!confirm('Permanently delete all items in trash?')) return;
+    state.trash = [];
+    Storage.set('trash', []);
+    updateTrashCount();
+    updateStorageDisplay();
+    renderTrashList();
+    showToast('Trash emptied', 'warning');
 }
 
 function createNewNote() {
     const note = createNote();
-    state.notes.unshift(note);
+    state.notes.unshift({ id: note.id, title: note.title, updatedAt: note.updatedAt });
     state.activeNoteId = note.id;
     saveNote(note);
-    Storage.set('notes_index', state.notes.map(n => ({ id: n.id, title: n.title, updatedAt: n.updatedAt })));
+    saveIndex();
 
     els.editor.innerHTML = '';
-    els.breadcrumbCurrent.textContent = 'Untitled';
+    els.noteTitleInput.value = 'Untitled';
     updateCounts();
     renderNotesList();
     updateStorageDisplay();
@@ -213,49 +257,48 @@ function loadNoteIntoEditor(note) {
     state.activeNoteId = note.id;
     state.snapshots = note.snapshots || [];
     state.lastSnapshotHash = null;
+    state.isReplaying = false;
+    stopReplay();
 
     els.editor.innerHTML = note.content || '';
-    els.breadcrumbCurrent.textContent = note.title || 'Untitled';
+    els.noteTitleInput.value = note.title || 'Untitled';
     updateCounts();
     updateSnapshotCount();
-    renderTimeline();
-    renderNotesList();
     updateLastSaved(note.updatedAt);
+    renderNotesList();
 }
 
 function updateNoteTitle() {
-    const text = els.editor.innerText.trim();
-    const title = text.split('\n')[0].slice(0, 50) || 'Untitled';
+    const title = els.noteTitleInput.value.trim() || 'Untitled';
     const note = loadNote(state.activeNoteId);
     if (note) {
         note.title = title;
-        note.content = els.editor.innerHTML;
         note.updatedAt = Date.now();
         saveNote(note);
 
-        // Update index
         const idx = state.notes.findIndex(n => n.id === state.activeNoteId);
         if (idx !== -1) {
             state.notes[idx].title = title;
             state.notes[idx].updatedAt = note.updatedAt;
         }
-        Storage.set('notes_index', state.notes.map(n => ({ id: n.id, title: n.title, updatedAt: n.updatedAt })));
-
-        els.breadcrumbCurrent.textContent = title;
+        saveIndex();
         renderNotesList();
-        updateLastSaved(note.updatedAt);
     }
 }
 
+function saveIndex() {
+    Storage.set('notes_index', state.notes.map(n => ({ id: n.id, title: n.title, updatedAt: n.updatedAt })));
+}
+
 // ============================================
-// Snapshot System (Debounced + Deduplicated)
+// Per-Keystroke Snapshot System
 // ============================================
-function takeSnapshot(force = false) {
+function takeSnapshot() {
     const content = els.editor.innerHTML;
     const hash = getContentHash(content);
 
     // Skip if content hasn't changed
-    if (!force && hash === state.lastSnapshotHash) return;
+    if (hash === state.lastSnapshotHash) return;
 
     state.lastSnapshotHash = hash;
 
@@ -269,7 +312,7 @@ function takeSnapshot(force = false) {
 
     state.snapshots.push(snapshot);
 
-    // Enforce max snapshots limit
+    // Enforce max snapshots
     const max = parseInt(state.settings.maxSnapshots);
     if (state.snapshots.length > max) {
         state.snapshots = state.snapshots.slice(-max);
@@ -279,98 +322,33 @@ function takeSnapshot(force = false) {
     const note = loadNote(state.activeNoteId);
     if (note) {
         note.snapshots = state.snapshots;
+        note.content = content;
+        note.updatedAt = Date.now();
         saveNote(note);
+        updateLastSaved(note.updatedAt);
     }
 
     updateSnapshotCount();
     updateStorageDisplay();
-    renderTimeline();
     state.dirty = true;
 }
 
-function debouncedSnapshot() {
-    clearTimeout(state.snapshotTimer);
-    state.snapshotTimer = setTimeout(() => {
-        takeSnapshot();
-    }, parseInt(state.settings.snapshotInterval));
-}
-
 // ============================================
-// Timeline / Replay
+// Replay (inline, no blur overlay)
 // ============================================
-function renderTimeline() {
-    const list = els.timelineList;
-    list.innerHTML = '';
-
-    if (state.snapshots.length === 0) {
-        list.innerHTML = '<div class="timeline-item" style="justify-content:center;color:var(--muted-foreground)">No snapshots yet</div>';
-        els.timelineScrubber.max = 0;
-        els.timelineScrubber.value = 0;
-        els.scrubberCurrent.textContent = 'Start';
-        els.scrubberTotal.textContent = 'End';
-        return;
-    }
-
-    els.timelineScrubber.max = state.snapshots.length - 1;
-
-    state.snapshots.forEach((snap, i) => {
-        const item = document.createElement('div');
-        item.className = 'timeline-item';
-        item.dataset.index = i;
-
-        const date = new Date(snap.timestamp);
-        const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const preview = stripHtml(snap.content).slice(0, 40) || '(empty)';
-        const size = formatBytes(snap.size);
-
-        item.innerHTML = `
-            <div class="timeline-dot"></div>
-            <div class="timeline-info">
-                <div class="timeline-time">${timeStr}</div>
-                <div class="timeline-preview">${escapeHtml(preview)}</div>
-            </div>
-            <div class="timeline-size">${size}</div>
-        `;
-
-        item.addEventListener('click', () => {
-            jumpToSnapshot(i);
-        });
-
-        list.appendChild(item);
-    });
-
-    els.scrubberTotal.textContent = state.snapshots.length + ' snaps';
-}
-
-function jumpToSnapshot(index) {
-    if (index < 0 || index >= state.snapshots.length) return;
-
-    const snap = state.snapshots[index];
-    els.editor.innerHTML = snap.content;
-    els.timelineScrubber.value = index;
-
-    const date = new Date(snap.timestamp);
-    els.scrubberCurrent.textContent = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    // Highlight active
-    $$('.timeline-item').forEach((item, i) => {
-        item.classList.toggle('active', i === index);
-    });
-
-    updateCounts();
-}
-
 function startReplay() {
     if (state.isReplaying || state.snapshots.length === 0) return;
 
     state.isReplaying = true;
-    els.timelinePlay.disabled = true;
-    els.timelinePause.disabled = false;
+    els.replayPlayBtn.disabled = true;
+    els.replayPauseBtn.disabled = false;
 
     let index = 0;
-    const speed = parseInt(els.replaySpeed.value);
+    const speed = getReplaySpeed();
 
-    jumpToSnapshot(0);
+    // Show first snapshot
+    els.editor.innerHTML = state.snapshots[0].content;
+    updateCounts();
 
     state.replayInterval = setInterval(() => {
         index++;
@@ -379,7 +357,8 @@ function startReplay() {
             showToast('Replay finished', 'success');
             return;
         }
-        jumpToSnapshot(index);
+        els.editor.innerHTML = state.snapshots[index].content;
+        updateCounts();
     }, speed);
 }
 
@@ -387,8 +366,17 @@ function stopReplay() {
     state.isReplaying = false;
     clearInterval(state.replayInterval);
     state.replayInterval = null;
-    els.timelinePlay.disabled = false;
-    els.timelinePause.disabled = true;
+    els.replayPlayBtn.disabled = false;
+    els.replayPauseBtn.disabled = true;
+}
+
+function getReplaySpeed() {
+    const val = els.replaySpeed.value;
+    if (val === 'custom') {
+        const custom = parseInt(els.customSpeed.value);
+        return isNaN(custom) || custom < 10 ? 100 : custom;
+    }
+    return parseInt(val);
 }
 
 // ============================================
@@ -399,12 +387,11 @@ function exportData() {
         version: 2,
         exportedAt: Date.now(),
         settings: state.settings,
-        notes: []
+        notes: [],
+        trash: state.trash
     };
 
-    // Load all notes
-    const index = Storage.get('notes_index') || [];
-    index.forEach(item => {
+    state.notes.forEach(item => {
         const note = loadNote(item.id);
         if (note) data.notes.push(note);
     });
@@ -413,7 +400,7 @@ function exportData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chrononote_export_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `quilltrace_export_${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -425,7 +412,7 @@ function exportData() {
 let importData = null;
 
 function handleImportFile(file) {
-    if (!file || file.type !== 'application/json' && !file.name.endsWith('.json')) {
+    if (!file || (!file.type.includes('json') && !file.name.endsWith('.json'))) {
         showToast('Please select a JSON file', 'error');
         return;
     }
@@ -434,22 +421,20 @@ function handleImportFile(file) {
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
-
             if (!data.notes || !Array.isArray(data.notes)) {
                 throw new Error('Invalid format: missing notes array');
             }
-
             importData = data;
 
+            const trashCount = data.trash ? data.trash.length : 0;
             els.importPreview.innerHTML = `
-                <strong>${data.notes.length} notes</strong> found<br>
+                <strong>${data.notes.length} notes</strong> found${trashCount > 0 ? `, ${trashCount} in trash` : ''}<br>
                 <small>Exported: ${new Date(data.exportedAt).toLocaleString()}</small>
             `;
             els.importPreview.classList.add('show');
             els.confirmImport.disabled = false;
-
         } catch (err) {
-            showToast('Invalid JSON file: ' + err.message, 'error');
+            showToast('Invalid JSON: ' + err.message, 'error');
             els.importPreview.classList.remove('show');
             els.confirmImport.disabled = true;
         }
@@ -460,37 +445,43 @@ function handleImportFile(file) {
 function confirmImport() {
     if (!importData) return;
 
-    // Merge or replace
     const existingIds = new Set(state.notes.map(n => n.id));
-    let imported = 0;
-    let merged = 0;
+    let imported = 0, merged = 0;
 
     importData.notes.forEach(note => {
         if (existingIds.has(note.id)) {
-            // Update existing
             const existing = loadNote(note.id);
             if (existing && note.updatedAt > existing.updatedAt) {
                 saveNote(note);
                 merged++;
             }
         } else {
-            // New note
             saveNote(note);
             state.notes.push({ id: note.id, title: note.title, updatedAt: note.updatedAt });
             imported++;
         }
     });
 
-    // Update index
-    Storage.set('notes_index', state.notes.map(n => ({ id: n.id, title: n.title, updatedAt: n.updatedAt })));
+    // Import trash
+    if (importData.trash && Array.isArray(importData.trash)) {
+        const trashIds = new Set(state.trash.map(n => n.id));
+        importData.trash.forEach(item => {
+            if (!trashIds.has(item.id)) {
+                state.trash.push(item);
+            }
+        });
+        Storage.set('trash', state.trash);
+    }
 
-    // Apply settings if present
+    saveIndex();
+
     if (importData.settings) {
         Object.assign(state.settings, importData.settings);
         applySettings();
     }
 
     renderNotesList();
+    updateTrashCount();
     updateStorageDisplay();
     closeModal(els.importModal);
 
@@ -510,26 +501,21 @@ function loadSettings() {
 }
 
 function saveSettings() {
-    state.settings.snapshotInterval = els.snapshotInterval.value;
     state.settings.maxSnapshots = els.maxSnapshots.value;
     state.settings.fontSize = els.fontSize.value;
     state.settings.theme = els.theme.value;
-
     Storage.set('settings', state.settings);
     applySettings();
     showToast('Settings saved', 'success');
 }
 
 function applySettings() {
-    els.snapshotInterval.value = state.settings.snapshotInterval;
     els.maxSnapshots.value = state.settings.maxSnapshots;
     els.fontSize.value = state.settings.fontSize;
     els.theme.value = state.settings.theme;
 
-    // Font size
     document.documentElement.style.setProperty('--editor-font-size', `${state.settings.fontSize}px`);
 
-    // Theme
     document.documentElement.removeAttribute('data-theme');
     if (state.settings.theme !== 'system') {
         document.documentElement.setAttribute('data-theme', state.settings.theme);
@@ -537,21 +523,24 @@ function applySettings() {
 }
 
 function clearAllData() {
-    if (!confirm('Are you sure? This will delete ALL notes and snapshots permanently.')) return;
+    if (!confirm('Are you sure? This will delete ALL notes, snapshots, and trash permanently.')) return;
 
-    Storage.clear();
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(CONFIG.DB_NAME + '_'));
+    keys.forEach(k => localStorage.removeItem(k));
+
     state.notes = [];
+    state.trash = [];
     state.activeNoteId = null;
     state.snapshots = [];
 
     createNewNote();
     updateStorageDisplay();
+    updateTrashCount();
     closeModal(els.settingsModal);
     showToast('All data cleared', 'warning');
 }
 
 function cleanupOldSnapshots() {
-    // Emergency cleanup: keep only last 50 snapshots per note
     state.notes.forEach(noteRef => {
         const note = loadNote(noteRef.id);
         if (note && note.snapshots && note.snapshots.length > 50) {
@@ -559,6 +548,135 @@ function cleanupOldSnapshots() {
             saveNote(note);
         }
     });
+}
+
+// ============================================
+// Context Menu
+// ============================================
+function showContextMenu(e, noteId) {
+    e.preventDefault();
+    state.contextMenuTarget = noteId;
+
+    const menu = els.contextMenu;
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    menu.classList.add('open');
+}
+
+function hideContextMenu() {
+    els.contextMenu.classList.remove('open');
+    state.contextMenuTarget = null;
+}
+
+function handleContextAction(action) {
+    const noteId = state.contextMenuTarget;
+    if (!noteId) return;
+
+    const note = loadNote(noteId);
+    if (!note) return;
+
+    switch (action) {
+        case 'rename':
+            els.renameInput.value = note.title || 'Untitled';
+            openModal(els.renameModal);
+            setTimeout(() => els.renameInput.focus(), 100);
+            break;
+        case 'duplicate':
+            const dup = createNote(note.title + ' (copy)', note.content);
+            dup.snapshots = note.snapshots ? [...note.snapshots] : [];
+            saveNote(dup);
+            state.notes.unshift({ id: dup.id, title: dup.title, updatedAt: dup.updatedAt });
+            saveIndex();
+            renderNotesList();
+            updateStorageDisplay();
+            showToast('Note duplicated', 'success');
+            break;
+        case 'delete':
+            deleteNote(noteId);
+            break;
+    }
+    hideContextMenu();
+}
+
+function confirmRename() {
+    const newTitle = els.renameInput.value.trim() || 'Untitled';
+    const noteId = state.contextMenuTarget;
+    if (!noteId) return;
+
+    const note = loadNote(noteId);
+    if (note) {
+        note.title = newTitle;
+        note.updatedAt = Date.now();
+        saveNote(note);
+
+        const idx = state.notes.findIndex(n => n.id === noteId);
+        if (idx !== -1) {
+            state.notes[idx].title = newTitle;
+            state.notes[idx].updatedAt = note.updatedAt;
+        }
+        saveIndex();
+
+        if (state.activeNoteId === noteId) {
+            els.noteTitleInput.value = newTitle;
+        }
+        renderNotesList();
+    }
+    closeModal(els.renameModal);
+}
+
+// ============================================
+// Trash Modal
+// ============================================
+function renderTrashList() {
+    const list = els.trashList;
+    list.innerHTML = '';
+
+    if (state.trash.length === 0) {
+        list.innerHTML = '<div style="text-align:center;color:var(--muted-foreground);padding:2rem">Trash is empty</div>';
+        return;
+    }
+
+    state.trash.forEach(note => {
+        const item = document.createElement('div');
+        item.className = 'trash-item';
+
+        const time = new Date(note.trashedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        item.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;flex-shrink:0">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span class="trash-title">${escapeHtml(note.title || 'Untitled')}</span>
+            <span class="trash-time">${time}</span>
+            <div class="trash-actions">
+                <button class="restore" title="Restore">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 4 1 10 7 10"/>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                </button>
+                <button class="delete-forever" title="Delete permanently">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+
+        item.querySelector('.restore').addEventListener('click', () => restoreNote(note));
+        item.querySelector('.delete-forever').addEventListener('click', () => {
+            if (confirm('Permanently delete this note?')) permanentlyDelete(note);
+        });
+
+        list.appendChild(item);
+    });
+}
+
+function updateTrashCount() {
+    els.trashCount.textContent = state.trash.length;
+    els.trashCount.style.display = state.trash.length > 0 ? 'inline-block' : 'none';
 }
 
 // ============================================
@@ -606,7 +724,6 @@ function updateLastSaved(timestamp) {
 function renderNotesList() {
     els.notesList.innerHTML = '';
 
-    // Sort by updatedAt desc
     const sorted = [...state.notes].sort((a, b) => b.updatedAt - a.updatedAt);
 
     sorted.forEach(note => {
@@ -626,23 +743,14 @@ function renderNotesList() {
             </svg>
             <span class="note-title">${escapeHtml(note.title || 'Untitled')}</span>
             <span class="note-time">${time}</span>
-            <button class="note-delete" title="Delete" data-id="${note.id}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                </svg>
-            </button>
         `;
 
-        li.addEventListener('click', (e) => {
-            if (e.target.closest('.note-delete')) {
-                e.stopPropagation();
-                deleteNote(note.id);
-                return;
-            }
+        li.addEventListener('click', () => {
             const loaded = loadNote(note.id);
             if (loaded) loadNoteIntoEditor(loaded);
         });
+
+        li.addEventListener('contextmenu', (e) => showContextMenu(e, note.id));
 
         els.notesList.appendChild(li);
     });
@@ -728,38 +836,28 @@ function updateToolbarState() {
 // Event Listeners
 // ============================================
 function initEventListeners() {
-    // Editor input
+    // Editor input - PER KEYSTROKE SNAPSHOT
     els.editor.addEventListener('input', () => {
         updateCounts();
-        debouncedSnapshot();
+        takeSnapshot();
         state.dirty = true;
     });
 
-    els.editor.addEventListener('keyup', () => {
-        updateToolbarState();
-    });
+    els.editor.addEventListener('keyup', () => updateToolbarState());
+    els.editor.addEventListener('mouseup', () => updateToolbarState());
 
-    els.editor.addEventListener('mouseup', () => {
-        updateToolbarState();
-    });
-
-    // Keyboard shortcuts
     els.editor.addEventListener('keydown', (e) => {
         if (e.key === 'Tab') {
             e.preventDefault();
             execCmd('insertText', '    ');
         }
-
-        // Save shortcut
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            takeSnapshot(true);
-            updateNoteTitle();
-            showToast('Saved', 'success');
+            showToast('Auto-saved on every keystroke', 'info');
         }
     });
 
-    // Toolbar buttons
+    // Toolbar
     els.toolbarBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.dataset.action;
@@ -779,7 +877,7 @@ function initEventListeners() {
         });
     });
 
-    // Sidebar
+    // Sidebar toggle
     els.sidebarToggle.addEventListener('click', () => {
         els.sidebar.classList.toggle('collapsed');
     });
@@ -790,42 +888,42 @@ function initEventListeners() {
 
     els.newNoteBtn.addEventListener('click', createNewNote);
 
-    // Timeline
-    els.timelineBtn.addEventListener('click', () => {
-        els.timelinePanel.classList.add('open');
-        els.timelineOverlay.classList.add('open');
-        renderTimeline();
+    // Trash
+    els.trashBtn.addEventListener('click', () => {
+        renderTrashList();
+        openModal(els.trashModal);
+    });
+    els.closeTrash.addEventListener('click', () => closeModal(els.trashModal));
+    els.trashModal.querySelector('.modal-backdrop').addEventListener('click', () => closeModal(els.trashModal));
+    els.emptyTrashBtn.addEventListener('click', emptyTrash);
+
+    // Replay
+    els.replayPlayBtn.addEventListener('click', startReplay);
+    els.replayPauseBtn.addEventListener('click', stopReplay);
+    els.replaySpeed.addEventListener('change', () => {
+        const isCustom = els.replaySpeed.value === 'custom';
+        els.customSpeed.style.display = isCustom ? 'inline-block' : 'none';
     });
 
-    els.closeTimeline.addEventListener('click', () => {
-        els.timelinePanel.classList.remove('open');
-        els.timelineOverlay.classList.remove('open');
-        stopReplay();
-    });
-
-    els.timelineOverlay.addEventListener('click', () => {
-        els.timelinePanel.classList.remove('open');
-        els.timelineOverlay.classList.remove('open');
-        stopReplay();
-    });
-
-    els.timelinePlay.addEventListener('click', startReplay);
-    els.timelinePause.addEventListener('click', stopReplay);
-
-    els.timelineScrubber.addEventListener('input', (e) => {
-        jumpToSnapshot(parseInt(e.target.value));
-        if (state.isReplaying) stopReplay();
+    // Title input
+    els.noteTitleInput.addEventListener('change', updateNoteTitle);
+    els.noteTitleInput.addEventListener('blur', updateNoteTitle);
+    els.noteTitleInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            els.noteTitleInput.blur();
+            updateNoteTitle();
+            els.editor.focus();
+        }
     });
 
     // Settings
     els.settingsBtn.addEventListener('click', () => openModal(els.settingsModal));
     els.closeSettings.addEventListener('click', () => closeModal(els.settingsModal));
     els.settingsModal.querySelector('.modal-backdrop').addEventListener('click', () => closeModal(els.settingsModal));
-
-    [els.snapshotInterval, els.maxSnapshots, els.fontSize, els.theme].forEach(el => {
+    [els.maxSnapshots, els.fontSize, els.theme].forEach(el => {
         el.addEventListener('change', saveSettings);
     });
-
     els.clearAllData.addEventListener('click', clearAllData);
 
     // Export / Import
@@ -856,15 +954,38 @@ function initEventListeners() {
         if (file) handleImportFile(file);
     });
 
-    // Auto-save on window blur / before unload
+    // Context menu
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.context-menu')) hideContextMenu();
+    });
+
+    els.contextMenu.querySelectorAll('.context-item').forEach(item => {
+        item.addEventListener('click', () => handleContextAction(item.dataset.action));
+    });
+
+    // Rename modal
+    els.closeRename.addEventListener('click', () => closeModal(els.renameModal));
+    els.cancelRename.addEventListener('click', () => closeModal(els.renameModal));
+    els.renameModal.querySelector('.modal-backdrop').addEventListener('click', () => closeModal(els.renameModal));
+    els.confirmRename.addEventListener('click', confirmRename);
+    els.renameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmRename();
+        if (e.key === 'Escape') closeModal(els.renameModal);
+    });
+
+    // Auto-save on blur
     window.addEventListener('beforeunload', () => {
         if (state.dirty && state.activeNoteId) {
-            takeSnapshot(true);
-            updateNoteTitle();
+            const note = loadNote(state.activeNoteId);
+            if (note) {
+                note.content = els.editor.innerHTML;
+                note.updatedAt = Date.now();
+                saveNote(note);
+            }
         }
     });
 
-    // Periodic storage update
+    // Periodic updates
     setInterval(() => {
         updateStorageDisplay();
         if (state.activeNoteId) {
@@ -879,6 +1000,11 @@ function initEventListeners() {
 // ============================================
 function init() {
     loadSettings();
+
+    // Load trash
+    const trash = Storage.get('trash');
+    if (trash) state.trash = trash;
+    updateTrashCount();
 
     // Load notes index
     const index = Storage.get('notes_index');
@@ -898,11 +1024,9 @@ function init() {
     updateStorageDisplay();
     updateToolbarState();
 
-    // Focus editor
     setTimeout(() => els.editor.focus(), 100);
 
-    console.log('ChronoNote initialized');
+    console.log('Quilltrace initialized');
 }
 
-// Start
 document.addEventListener('DOMContentLoaded', init);
