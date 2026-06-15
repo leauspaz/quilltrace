@@ -89,7 +89,6 @@
                     <div class="last-saved" id="lastSaved">Unsaved</div>
                     <div class="toolbar-separator"></div>
 
-                    <!-- Replay Controls (inline, replaces replay button when active) -->
                     <div class="replay-controls" id="replayControls">
                         <button class="btn btn-ghost btn-icon" id="replayPlayBtn" title="Play">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -324,6 +323,19 @@
                 </button>
             </div>
             <div class="modal-body">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Canvas Width</label>
+                        <span class="setting-desc">Editor content area width</span>
+                    </div>
+                    <select id="canvasWidth" class="setting-select">
+                        <option value="600">600px</option>
+                        <option value="800" selected>800px</option>
+                        <option value="1000">1000px</option>
+                        <option value="1200">1200px</option>
+                        <option value="none">Full width</option>
+                    </select>
+                </div>
                 <div class="setting-item">
                     <div class="setting-info">
                         <label>Max Snapshots</label>

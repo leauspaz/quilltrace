@@ -11,6 +11,7 @@ A lightweight, static note-taking app with per-keystroke time travel. Built as a
 - **Right-click context menus**: Right-click any note in the sidebar to rename, duplicate, or move to trash.
 - **Import / Export**: Full JSON export and import with merge logic. Settings, notes, snapshots, and trash all travel together.
 - **Custom replay speed**: Choose from preset speeds (2x, 1x, 0.5x, 0.2x) or enter any custom millisecond interval.
+- **Canvas width control**: Adjust the editor content area width from 600px to full width.
 - **Shadcn-inspired UI**: Clean, minimal interface with system/light/dark theme support.
 - **Mobile responsive**: Collapsible sidebar, multi-line toolbar on small screens, and adaptive replay controls.
 - **Storage tracking**: Live storage usage bar with visual indicator.
@@ -57,6 +58,7 @@ Data stored:
 
 Access settings via the gear icon in the top bar:
 
+- **Canvas Width**: Editor content area width (600px, 800px, 1000px, 1200px, or full width)
 - **Max Snapshots**: Limit snapshots per note to prevent storage bloat (50 to 1000)
 - **Font Size**: Editor font size (14px to 20px)
 - **Theme**: System, light, or dark mode

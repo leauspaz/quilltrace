@@ -46,6 +46,7 @@
     --topbar-height: 52px;
     --toolbar-height: 44px;
     --statusbar-height: 32px;
+    --editor-max-width: 800px;
 
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -443,7 +444,7 @@ body {
     padding: 0.25rem 0.5rem;
     border-radius: calc(var(--radius) - 4px);
     outline: none;
-    transition: all 0.15s;
+    transition: background 0.15s;
 }
 
 .note-title-input:hover {
@@ -452,7 +453,6 @@ body {
 
 .note-title-input:focus {
     background: var(--accent);
-    box-shadow: 0 0 0 2px var(--ring);
 }
 
 .note-title-input::placeholder {
@@ -518,7 +518,6 @@ body {
 
 .custom-speed:focus {
     border-color: var(--ring);
-    box-shadow: 0 0 0 2px var(--ring);
 }
 
 /* Editor Toolbar */
@@ -583,6 +582,7 @@ body {
     overflow-y: auto;
     position: relative;
     background: var(--editor-bg);
+    width: 100%;
 }
 
 .editor-wrapper::-webkit-scrollbar {
@@ -605,7 +605,7 @@ body {
 .editor {
     min-height: 100%;
     padding: 2rem 3rem;
-    max-width: 800px;
+    max-width: var(--editor-max-width);
     margin: 0 auto;
     font-size: var(--editor-font-size, 16px);
     line-height: 1.75;
@@ -613,6 +613,10 @@ body {
     outline: none;
     caret-color: var(--editor-caret);
     background: var(--editor-bg);
+}
+
+.editor:focus-visible {
+    outline: none;
 }
 
 .editor:empty::before {
@@ -1076,7 +1080,6 @@ body {
 
 .rename-input:focus {
     border-color: var(--ring);
-    box-shadow: 0 0 0 2px var(--ring);
 }
 
 /* Settings */
@@ -1125,7 +1128,6 @@ body {
 
 .setting-select:focus {
     border-color: var(--ring);
-    box-shadow: 0 0 0 2px var(--ring);
 }
 
 .setting-danger {
@@ -1264,7 +1266,6 @@ body {
 
     .editor {
         padding: 1rem;
-        max-width: none;
     }
 
     .editor-toolbar {
@@ -1333,6 +1334,14 @@ select:focus-visible,
 input:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+}
+
+.editor:focus-visible {
+    outline: none;
+}
+
+.note-title-input:focus-visible {
+    outline: none;
 }
 
 @media print {

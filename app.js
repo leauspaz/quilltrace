@@ -11,7 +11,8 @@ const CONFIG = {
     DEFAULT_SETTINGS: {
         maxSnapshots: 200,
         fontSize: 16,
-        theme: 'system'
+        theme: 'system',
+        canvasWidth: 800
     },
     MAX_STORAGE_MB: 5
 };
@@ -26,7 +27,8 @@ let state = {
     replayInterval: null,
     lastSnapshotHash: null,
     dirty: false,
-    contextMenuTarget: null
+    contextMenuTarget: null,
+    renameTargetId: null
 };
 
 // ============================================
@@ -59,6 +61,7 @@ const els = {
     settingsBtn: $('#settingsBtn'),
     settingsModal: $('#settingsModal'),
     closeSettings: $('#closeSettings'),
+    canvasWidth: $('#canvasWidth'),
     maxSnapshots: $('#maxSnapshots'),
     fontSize: $('#fontSize'),
     theme: $('#theme'),
@@ -150,7 +153,7 @@ function getContentHash(html) {
 // ============================================
 function createNote(title = 'Untitled', content = '') {
     const now = Date.now();
-    return {
+    const note = {
         id: `note_${now}_${Math.random().toString(36).slice(2, 8)}`,
         title: title || 'Untitled',
         content: content,
@@ -158,6 +161,7 @@ function createNote(title = 'Untitled', content = '') {
         updatedAt: now,
         snapshots: []
     };
+    return note;
 }
 
 function saveNote(note) {
@@ -173,12 +177,10 @@ function deleteNote(id) {
     const note = loadNote(id);
     if (!note) return;
 
-    // Move to trash
     const trashed = { ...note, trashedAt: Date.now() };
     state.trash.push(trashed);
     Storage.set('trash', state.trash);
 
-    // Remove from active
     Storage.remove(`note_${id}`);
     state.notes = state.notes.filter(n => n.id !== id);
 
@@ -237,6 +239,12 @@ function emptyTrash() {
 }
 
 function createNewNote() {
+    // CRITICAL FIX: Reset snapshots and hash to prevent cross-contamination
+    state.snapshots = [];
+    state.lastSnapshotHash = null;
+    state.isReplaying = false;
+    stopReplay();
+
     const note = createNote();
     state.notes.unshift({ id: note.id, title: note.title, updatedAt: note.updatedAt });
     state.activeNoteId = note.id;
@@ -246,6 +254,7 @@ function createNewNote() {
     els.editor.innerHTML = '';
     els.noteTitleInput.value = 'Untitled';
     updateCounts();
+    updateSnapshotCount();
     renderNotesList();
     updateStorageDisplay();
     els.editor.focus();
@@ -254,6 +263,8 @@ function createNewNote() {
 
 function loadNoteIntoEditor(note) {
     if (!note) return;
+
+    // CRITICAL FIX: Reset replay state and snapshots
     state.activeNoteId = note.id;
     state.snapshots = note.snapshots || [];
     state.lastSnapshotHash = null;
@@ -462,7 +473,6 @@ function confirmImport() {
         }
     });
 
-    // Import trash
     if (importData.trash && Array.isArray(importData.trash)) {
         const trashIds = new Set(state.trash.map(n => n.id));
         importData.trash.forEach(item => {
@@ -501,6 +511,7 @@ function loadSettings() {
 }
 
 function saveSettings() {
+    state.settings.canvasWidth = els.canvasWidth.value;
     state.settings.maxSnapshots = els.maxSnapshots.value;
     state.settings.fontSize = els.fontSize.value;
     state.settings.theme = els.theme.value;
@@ -510,11 +521,15 @@ function saveSettings() {
 }
 
 function applySettings() {
+    els.canvasWidth.value = state.settings.canvasWidth;
     els.maxSnapshots.value = state.settings.maxSnapshots;
     els.fontSize.value = state.settings.fontSize;
     els.theme.value = state.settings.theme;
 
     document.documentElement.style.setProperty('--editor-font-size', `${state.settings.fontSize}px`);
+
+    const width = state.settings.canvasWidth === 'none' ? 'none' : `${state.settings.canvasWidth}px`;
+    document.documentElement.style.setProperty('--editor-max-width', width);
 
     document.documentElement.removeAttribute('data-theme');
     if (state.settings.theme !== 'system') {
@@ -577,6 +592,8 @@ function handleContextAction(action) {
 
     switch (action) {
         case 'rename':
+            // CRITICAL FIX: Store target ID in dedicated variable
+            state.renameTargetId = noteId;
             els.renameInput.value = note.title || 'Untitled';
             openModal(els.renameModal);
             setTimeout(() => els.renameInput.focus(), 100);
@@ -599,10 +616,11 @@ function handleContextAction(action) {
 }
 
 function confirmRename() {
-    const newTitle = els.renameInput.value.trim() || 'Untitled';
-    const noteId = state.contextMenuTarget;
+    // CRITICAL FIX: Use dedicated renameTargetId instead of contextMenuTarget
+    const noteId = state.renameTargetId;
     if (!noteId) return;
 
+    const newTitle = els.renameInput.value.trim() || 'Untitled';
     const note = loadNote(noteId);
     if (note) {
         note.title = newTitle;
@@ -621,6 +639,8 @@ function confirmRename() {
         }
         renderNotesList();
     }
+
+    state.renameTargetId = null;
     closeModal(els.renameModal);
 }
 
@@ -921,7 +941,7 @@ function initEventListeners() {
     els.settingsBtn.addEventListener('click', () => openModal(els.settingsModal));
     els.closeSettings.addEventListener('click', () => closeModal(els.settingsModal));
     els.settingsModal.querySelector('.modal-backdrop').addEventListener('click', () => closeModal(els.settingsModal));
-    [els.maxSnapshots, els.fontSize, els.theme].forEach(el => {
+    [els.canvasWidth, els.maxSnapshots, els.fontSize, els.theme].forEach(el => {
         el.addEventListener('change', saveSettings);
     });
     els.clearAllData.addEventListener('click', clearAllData);
