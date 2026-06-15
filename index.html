@@ -91,9 +91,7 @@
                                 <option value="100" selected>1x</option>
                                 <option value="200">0.5x</option>
                                 <option value="500">0.2x</option>
-                                <option value="custom">Custom</option>
                             </select>
-                            <input type="number" id="customSpeed" class="custom-speed" placeholder="ms" min="10" max="5000" value="100" style="display:none">
                         </div>
                     </div>
 
@@ -410,23 +408,21 @@
         </div>
     </div>
 
-    <!-- Walkthrough Overlay -->
-    <div class="walkthrough-overlay" id="walkthroughOverlay">
-        <div class="walkthrough-backdrop"></div>
-        <div class="walkthrough-spotlight" id="walkthroughSpotlight"></div>
-    </div>
-
-    <!-- Walkthrough Tooltip -->
-    <div class="walkthrough-tooltip" id="walkthroughTooltip">
-        <div class="walkthrough-content">
-            <h4 id="walkthroughTitle">Welcome</h4>
-            <p id="walkthroughText">Welcome to Quilltrace</p>
-            <div class="walkthrough-progress">
-                <span id="walkthroughStep">1</span> / <span id="walkthroughTotal">5</span>
-            </div>
-            <div class="walkthrough-actions">
-                <button class="btn btn-ghost btn-sm" id="walkthroughSkip">Skip</button>
-                <button class="btn btn-primary btn-sm" id="walkthroughNext">Next</button>
+    <!-- Walkthrough Modal -->
+    <div class="modal" id="walkthroughModal">
+        <div class="modal-backdrop walkthrough-backdrop"></div>
+        <div class="modal-content walkthrough-content">
+            <div class="walkthrough-body">
+                <div class="walkthrough-step-indicator">
+                    <span id="walkthroughStepNum">1</span> / <span id="walkthroughTotalSteps">5</span>
+                </div>
+                <h3 id="walkthroughTitle">Welcome to Quilltrace</h3>
+                <p id="walkthroughText" class="walkthrough-desc">Welcome to Quilltrace</p>
+                <div class="walkthrough-nav">
+                    <button class="btn btn-ghost btn-sm" id="walkthroughPrev" disabled>Previous</button>
+                    <button class="btn btn-primary btn-sm" id="walkthroughNext">Next</button>
+                </div>
+                <button class="walkthrough-skip" id="walkthroughSkip">Skip tour</button>
             </div>
         </div>
     </div>

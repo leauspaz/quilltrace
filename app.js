@@ -29,8 +29,7 @@ let state = {
     dirty: false,
     contextMenuTarget: null,
     renameTargetId: null,
-    walkthroughStep: 0,
-    walkthroughActive: false
+    walkthroughStep: 0
 };
 
 // ============================================
@@ -58,7 +57,6 @@ const els = {
     replayPlayBtn: $('#replayPlayBtn'),
     replayPauseBtn: $('#replayPauseBtn'),
     replaySpeed: $('#replaySpeed'),
-    customSpeed: $('#customSpeed'),
     settingsBtn: $('#settingsBtn'),
     settingsModal: $('#settingsModal'),
     closeSettings: $('#closeSettings'),
@@ -89,50 +87,39 @@ const els = {
     confirmRename: $('#confirmRename'),
     renameInput: $('#renameInput'),
     // Walkthrough
-    walkthroughOverlay: $('#walkthroughOverlay'),
-    walkthroughSpotlight: $('#walkthroughSpotlight'),
-    walkthroughTooltip: $('#walkthroughTooltip'),
+    walkthroughModal: $('#walkthroughModal'),
+    walkthroughStepNum: $('#walkthroughStepNum'),
+    walkthroughTotalSteps: $('#walkthroughTotalSteps'),
     walkthroughTitle: $('#walkthroughTitle'),
     walkthroughText: $('#walkthroughText'),
-    walkthroughStep: $('#walkthroughStep'),
-    walkthroughTotal: $('#walkthroughTotal'),
+    walkthroughPrev: $('#walkthroughPrev'),
     walkthroughNext: $('#walkthroughNext'),
     walkthroughSkip: $('#walkthroughSkip')
 };
 
 // ============================================
-// Walkthrough Steps
+// Walkthrough Steps - Very descriptive, toddler-friendly
 // ============================================
 const WALKTHROUGH_STEPS = [
     {
         title: 'Welcome to Quilltrace',
-        text: 'A note-taking app that captures every keystroke. Your writing history is preserved so you can replay your creative process.',
-        target: null,
-        position: 'center'
+        text: 'This is a note-taking app that remembers every single letter you type. You can watch your writing come back to life later. Think of it like a time machine for your words.'
     },
     {
-        title: 'Your Notes',
-        text: 'All your notes live here. Right-click any note to rename, duplicate, or move it to trash.',
-        target: '#sidebar',
-        position: 'right'
+        title: 'How to See Your Notes',
+        text: 'On a computer, your notes are already visible on the left side of the screen. On a phone, tap the three-line menu button in the top right corner to open your notes list. Tap it again to close.'
     },
     {
-        title: 'The Editor',
-        text: 'Start typing here. Every keystroke is automatically saved as a snapshot. Use the toolbar for formatting.',
-        target: '#editor',
-        position: 'bottom'
+        title: 'How to Write',
+        text: 'Click or tap in the big empty area and start typing. The toolbar above has buttons to make text bold, italic, underlined, or add headings and lists. Every keystroke is saved automatically.'
     },
     {
-        title: 'Replay Your Writing',
-        text: 'Hit Play to watch your note being written back in real time. Adjust speed or enter a custom interval.',
-        target: '#replayControls',
-        position: 'bottom'
+        title: 'How to Replay Your Writing',
+        text: 'After you type something, press the play button in the top bar to watch your words appear again, one keystroke at a time. Use the speed dropdown to make it faster or slower. Press pause to stop.'
     },
     {
-        title: 'Import & Export',
-        text: 'Export all your notes as JSON for backup. Import them back later, including trash and settings.',
-        target: '#exportBtn',
-        position: 'bottom'
+        title: 'How to Save and Share',
+        text: 'Press Export to save all your notes as a file on your computer. Press Import to bring them back later. This also saves your trash and settings. Everything stays on your device, nowhere else.'
     }
 ];
 
@@ -143,12 +130,9 @@ function startWalkthrough() {
     const hasSeenWalkthrough = Storage.get('walkthrough_seen');
     if (hasSeenWalkthrough) return;
 
-    state.walkthroughActive = true;
     state.walkthroughStep = 0;
-    els.walkthroughTotal.textContent = WALKTHROUGH_STEPS.length;
-    els.walkthroughOverlay.classList.add('active');
-    els.walkthroughTooltip.classList.add('active');
-
+    els.walkthroughTotalSteps.textContent = WALKTHROUGH_STEPS.length;
+    openModal(els.walkthroughModal);
     showWalkthroughStep(0);
 }
 
@@ -160,89 +144,25 @@ function showWalkthroughStep(index) {
     }
 
     state.walkthroughStep = index;
-    els.walkthroughStep.textContent = index + 1;
+    els.walkthroughStepNum.textContent = index + 1;
     els.walkthroughTitle.textContent = step.title;
     els.walkthroughText.textContent = step.text;
 
-    // Update button text
+    // Previous button
+    els.walkthroughPrev.disabled = index === 0;
+
+    // Next button text
     if (index === WALKTHROUGH_STEPS.length - 1) {
         els.walkthroughNext.textContent = 'Get Started';
     } else {
         els.walkthroughNext.textContent = 'Next';
     }
-
-    // Position spotlight and tooltip
-    if (step.target) {
-        const targetEl = $(step.target);
-        if (targetEl) {
-            const rect = targetEl.getBoundingClientRect();
-            const padding = 8;
-
-            // Spotlight
-            els.walkthroughSpotlight.style.display = 'block';
-            els.walkthroughSpotlight.style.left = `${rect.left - padding}px`;
-            els.walkthroughSpotlight.style.top = `${rect.top - padding}px`;
-            els.walkthroughSpotlight.style.width = `${rect.width + padding * 2}px`;
-            els.walkthroughSpotlight.style.height = `${rect.height + padding * 2}px`;
-
-            // Tooltip position
-            positionTooltip(rect, step.position);
-        } else {
-            // Fallback to center if target not found
-            centerTooltip();
-        }
-    } else {
-        // Center tooltip, hide spotlight
-        els.walkthroughSpotlight.style.display = 'none';
-        centerTooltip();
-    }
 }
 
-function positionTooltip(targetRect, position) {
-    const tooltip = els.walkthroughTooltip;
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const gap = 16;
-    let left, top;
-
-    switch (position) {
-        case 'right':
-            left = targetRect.right + gap;
-            top = targetRect.top + (targetRect.height - tooltipRect.height) / 2;
-            if (left + tooltipRect.width > window.innerWidth - 16) {
-                left = targetRect.left - tooltipRect.width - gap;
-            }
-            break;
-        case 'bottom':
-            left = targetRect.left + (targetRect.width - tooltipRect.width) / 2;
-            top = targetRect.bottom + gap;
-            if (left < 16) left = 16;
-            if (left + tooltipRect.width > window.innerWidth - 16) {
-                left = window.innerWidth - tooltipRect.width - 16;
-            }
-            if (top + tooltipRect.height > window.innerHeight - 16) {
-                top = targetRect.top - tooltipRect.height - gap;
-            }
-            break;
-        default:
-            centerTooltip();
-            return;
+function prevWalkthroughStep() {
+    if (state.walkthroughStep > 0) {
+        showWalkthroughStep(state.walkthroughStep - 1);
     }
-
-    // Clamp to viewport
-    left = Math.max(16, Math.min(left, window.innerWidth - tooltipRect.width - 16));
-    top = Math.max(16, Math.min(top, window.innerHeight - tooltipRect.height - 16));
-
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-}
-
-function centerTooltip() {
-    const tooltip = els.walkthroughTooltip;
-    const rect = tooltip.getBoundingClientRect();
-    const left = (window.innerWidth - rect.width) / 2;
-    const top = (window.innerHeight - rect.height) / 2;
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
 }
 
 function nextWalkthroughStep() {
@@ -254,10 +174,7 @@ function nextWalkthroughStep() {
 }
 
 function endWalkthrough() {
-    state.walkthroughActive = false;
-    els.walkthroughOverlay.classList.remove('active');
-    els.walkthroughTooltip.classList.remove('active');
-    els.walkthroughSpotlight.style.display = 'none';
+    closeModal(els.walkthroughModal);
     Storage.set('walkthrough_seen', true);
     showToast('Welcome to Quilltrace!', 'success');
 }
@@ -548,12 +465,7 @@ function stopReplay() {
 }
 
 function getReplaySpeed() {
-    const val = els.replaySpeed.value;
-    if (val === 'custom') {
-        const custom = parseInt(els.customSpeed.value);
-        return isNaN(custom) || custom < 10 ? 100 : custom;
-    }
-    return parseInt(val);
+    return parseInt(els.replaySpeed.value);
 }
 
 // ============================================
@@ -1021,6 +933,7 @@ function updateToolbarState() {
 // ============================================
 function initEventListeners() {
     // Walkthrough
+    els.walkthroughPrev.addEventListener('click', prevWalkthroughStep);
     els.walkthroughNext.addEventListener('click', nextWalkthroughStep);
     els.walkthroughSkip.addEventListener('click', endWalkthrough);
 
@@ -1084,10 +997,6 @@ function initEventListeners() {
     // Replay
     els.replayPlayBtn.addEventListener('click', startReplay);
     els.replayPauseBtn.addEventListener('click', stopReplay);
-    els.replaySpeed.addEventListener('change', () => {
-        const isCustom = els.replaySpeed.value === 'custom';
-        els.customSpeed.style.display = isCustom ? 'inline-block' : 'none';
-    });
 
     // Title input
     els.noteTitleInput.addEventListener('change', updateNoteTitle);
@@ -1210,8 +1119,7 @@ function init() {
 
     setTimeout(() => {
         els.editor.focus();
-        // Start walkthrough after a brief delay for first-time users
-        setTimeout(startWalkthrough, 500);
+        setTimeout(startWalkthrough, 600);
     }, 100);
 
     console.log('Quilltrace initialized');

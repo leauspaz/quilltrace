@@ -1321,85 +1321,62 @@ body {
 /* ============================================
    Walkthrough / Onboarding
    ============================================ */
-.walkthrough-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 500;
-    display: none;
-}
-
-.walkthrough-overlay.active {
-    display: block;
-}
-
 .walkthrough-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.4);
 }
 
-.walkthrough-spotlight {
-    position: absolute;
-    border-radius: var(--radius);
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
+.walkthrough-content {
+    max-width: 420px;
+    text-align: center;
 }
 
-.walkthrough-tooltip {
-    position: fixed;
-    z-index: 501;
-    background: var(--popover);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-xl);
-    padding: 1.25rem;
-    min-width: 280px;
-    max-width: 340px;
-    display: none;
-    animation: walkthroughIn 0.3s ease;
+.walkthrough-body {
+    padding: 2rem 1.5rem;
 }
 
-.walkthrough-tooltip.active {
-    display: block;
-}
-
-@keyframes walkthroughIn {
-    from { opacity: 0; transform: translateY(8px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.walkthrough-content h4 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--popover-foreground);
-}
-
-.walkthrough-content p {
-    font-size: 0.875rem;
-    color: var(--muted-foreground);
-    line-height: 1.5;
-    margin-bottom: 1rem;
-}
-
-.walkthrough-progress {
+.walkthrough-step-indicator {
     font-size: 0.75rem;
     color: var(--muted-foreground);
     font-family: var(--font-mono);
     margin-bottom: 1rem;
 }
 
-.walkthrough-actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
+.walkthrough-body h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--foreground);
 }
 
-.walkthrough-actions .btn-sm {
-    padding: 0.375rem 0.875rem;
-    font-size: 0.8125rem;
+.walkthrough-desc {
+    font-size: 0.9375rem;
+    color: var(--muted-foreground);
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+    text-align: left;
 }
+
+.walkthrough-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.walkthrough-skip {
+    background: none;
+    border: none;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.15s;
+}
+
+.walkthrough-skip:hover {
+    color: var(--foreground);
+}
+
 /* ============================================
    Utilities
    ============================================ */
