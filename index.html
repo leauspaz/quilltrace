@@ -17,6 +17,7 @@
 </head>
 <body>
     <div class="app">
+        <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
@@ -90,12 +91,13 @@
                             </svg>
                         </button>
                         <div class="speed-wrap">
-                            <select id="replaySpeed" class="speed-select">
-                                <option value="50">2x</option>
-                                <option value="100" selected>1x</option>
-                                <option value="200">0.5x</option>
-                                <option value="500">0.2x</option>
-                            </select>
+                            <button class="speed-trigger" id="replaySpeedTrigger">1x</button>
+                            <div class="speed-dropdown" id="replaySpeedDropdown">
+                                <div class="speed-option" data-value="50">2x</div>
+                                <div class="speed-option active" data-value="100">1x</div>
+                                <div class="speed-option" data-value="200">0.5x</div>
+                                <div class="speed-option" data-value="500">0.2x</div>
+                            </div>
                         </div>
                     </div>
 
