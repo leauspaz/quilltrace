@@ -4,9 +4,9 @@
   "description": "A note-taking app that captures every keystroke. Replay your writing process.",
   "icons": [
     {
-      "src": "favicon.svg",
+      "src": "favicon.png",
       "sizes": "any",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {

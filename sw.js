@@ -5,7 +5,8 @@ const STATIC_ASSETS = [
   './styles.css',
   './app.js',
   './manifest.json',
-  './favicon.svg'
+  './favicon.svg',
+  './favicon.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -51,7 +52,7 @@ self.addEventListener('fetch', (event) => {
               cache.put(event.request, response.clone());
             });
           }
-        }).catch(() => {});
+        }).catch(() => { });
         return cached;
       }
 
