@@ -29,7 +29,8 @@ let state = {
     dirty: false,
     contextMenuTarget: null,
     renameTargetId: null,
-    walkthroughStep: 0
+    walkthroughStep: 0,
+    replaySpeed: 100
 };
 
 // ============================================
@@ -467,7 +468,7 @@ function stopReplay() {
 }
 
 function getReplaySpeed() {
-    return currentSpeedValue;
+    return state.replaySpeed;
 }
 
 // ============================================
@@ -1012,8 +1013,6 @@ function initEventListeners() {
     els.replayPauseBtn.addEventListener('click', stopReplay);
 
     // Custom speed dropdown
-    let currentSpeedValue = 100;
-
     els.replaySpeedTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
         els.replaySpeedDropdown.classList.toggle('open');
@@ -1022,7 +1021,7 @@ function initEventListeners() {
     els.replaySpeedDropdown.querySelectorAll('.speed-option').forEach(option => {
         option.addEventListener('click', (e) => {
             e.stopPropagation();
-            currentSpeedValue = parseInt(option.dataset.value);
+            state.replaySpeed = parseInt(option.dataset.value);
             els.replaySpeedTrigger.textContent = option.textContent;
             els.replaySpeedDropdown.querySelectorAll('.speed-option').forEach(o => o.classList.remove('active'));
             option.classList.add('active');
